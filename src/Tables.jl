@@ -9,7 +9,23 @@ import IteratorInterfaceExtensions
 export rowtable, columntable
 
 function __init__()
-    @require DataValues="e7dc6d0d-1eca-5fa6-8ad6-5aecde8b7ea5" include("datavalues.jl")
+    @require DataValues="e7dc6d0d-1eca-5fa6-8ad6-5aecde8b7ea5" begin
+        using .DataValues
+
+        # DataValue overloads for iteratorwrapper.jl definitions
+        nondatavaluetype(::Type{DataValue{T}}) where {T} = Union{T, Missing}
+        unwrap(x::DataValue) = isna(x) ? missing : DataValues.unsafe_get(x)
+        datavaluetype(::Type{T}) where {T <: DataValue} = T
+        datavaluetype(::Type{Union{T, Missing}}) where {T} = DataValue{T}
+        datavaluetype(::Type{Missing}) = DataValue{Union{}}
+
+        scalarconvert(::Type{T}, ::Missing) where {T <: DataValue} = T()
+
+        @require CategoricalArrays="324d7699-5711-5eae-9e2f-1d82baa6b597" begin
+            using .CategoricalArrays
+            scalarconvert(::Type{DataValue{T}}, x::T) where {T <: CategoricalArrays.CatValue} = DataValue(x)
+        end
+    end
     @require CategoricalArrays="324d7699-5711-5eae-9e2f-1d82baa6b597" begin
         using .CategoricalArrays
         allocatecolumn(::Type{CategoricalString{R}}, rows) where {R} = CategoricalArray{String, 1, R}(undef, rows)
@@ -114,7 +130,7 @@ Obviously every table type is different, but via a combination of `Tables.rows` 
 abstract type Table end
 
 # default definitions
-istable(x::T) where {T} = istable(T) || TableTraits.isiterabletable(x) === true || Base.isiterable(T)
+istable(x::T) where {T} = istable(T) || TableTraits.isiterabletable(x) === true
 istable(::Type{T}) where {T} = false
 rowaccess(x::T) where {T} = rowaccess(T)
 rowaccess(::Type{T}) where {T} = false
@@ -151,8 +167,8 @@ and other optimization use-cases.
 struct Schema{names, types} end
 Schema(names::Tuple{Vararg{Symbol}}, types::Type{T}) where {T <: Tuple} = Schema{names, T}()
 Schema(::Type{NamedTuple{names, types}}) where {names, types} = Schema{names, types}()
-Schema(names, ::Nothing) = Schema{Tuple(map(Symbol, names)), nothing}()
-Schema(names, types) = Schema{Tuple(map(Symbol, names)), Tuple{types...}}()
+Schema(names, ::Nothing) = Schema{Tuple(Base.map(Symbol, names)), nothing}()
+Schema(names, types) = Schema{Tuple(Base.map(Symbol, names)), Tuple{types...}}()
 
 function Base.show(io::IO, sch::Schema{names, types}) where {names, types}
     println(io, "Tables.Schema:")
@@ -181,7 +197,7 @@ include("namedtuples.jl")
 include("fallbacks.jl")
 
 # allow any valid iterator to be a table
-include("iteratorwrapper.jl")
+include("tofromdatavalues.jl")
 
 # simple table operations on table inputs
 include("operations.jl")
