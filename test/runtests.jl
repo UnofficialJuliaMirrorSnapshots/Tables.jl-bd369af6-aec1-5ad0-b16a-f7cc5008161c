@@ -258,7 +258,7 @@ function TableTraits.get_columns_copy_using_missing(x::ColumnSource)
 end
 
 let x=ColumnSource()
-    @test Tables.columns(x) == TableTraits.get_columns_copy_using_missing(x)
+    @test Tables.source(Tables.columns(x)) == Tables.source(Tables.CopiedColumns(TableTraits.get_columns_copy_using_missing(x)))
 end
 
 struct ColumnSource2
@@ -271,7 +271,7 @@ IteratorInterfaceExtensions.getiterator(::ColumnSource2) =
     Tables.rows((a=[1,2,3], b=[4.,5.,6.], c=["A", "B", "C"]))
 
 let x=ColumnSource2()
-    @test Tables.columns(x) == (a=[1,2,3], b=[4.,5.,6.], c=["A", "B", "C"])
+    @test Tables.source(Tables.columns(x)) == (a=[1,2,3], b=[4.,5.,6.], c=["A", "B", "C"])
 end
 
 @testset "operations.jl" begin
@@ -409,19 +409,19 @@ end
     rt2 = collect(dv)
     @test rt2[1] == (a = 1, b = DataValue{Float64}(4.0), c = "7")
 
-    ei = Tables.IteratorWrapper(QueryOperators.EnumerableIterable{eltype(dv), typeof(dv)}(dv))
+    ei = Tables.nondatavaluerows(QueryOperators.EnumerableIterable{eltype(dv), typeof(dv)}(dv))
     nt = ei |> columntable
     @test isequal(rt, nt)
     rt3 = ei |> rowtable
     @test isequal(rt |> rowtable, rt3)
 
     # rt = [(a=1, b=4.0, c="7"), (a=2, b=5.0, c="8"), (a=3, b=6.0, c="9")]
-    mt = Tables.IteratorWrapper(ei.x |> y->QueryOperators.map(y, x->(a=x.b, c=x.c), Expr(:block)))
+    mt = Tables.nondatavaluerows(ei.x |> y->QueryOperators.map(y, x->(a=x.b, c=x.c), Expr(:block)))
     @inferred (mt |> columntable)
     @inferred (mt |> rowtable)
 
     # uninferrable case
-    mt = Tables.IteratorWrapper(ei.x |> y->QueryOperators.map(y, x->(a=x.a, c=x.c), Expr(:block)))
+    mt = Tables.nondatavaluerows(ei.x |> y->QueryOperators.map(y, x->(a=x.a, c=x.c), Expr(:block)))
     @test (mt |> columntable) == (a = Real[1, 2.0, 3], c = ["7", "8", "9"])
     @test length(mt |> rowtable) == 3
 
