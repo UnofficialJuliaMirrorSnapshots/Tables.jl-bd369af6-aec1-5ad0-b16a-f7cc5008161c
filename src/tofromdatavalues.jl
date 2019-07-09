@@ -32,7 +32,7 @@ Base.size(rows::IteratorWrapper) = size(rows.x)
 
 @noinline invalidtable(::T, ::S) where {T, S} = throw(ArgumentError("'$T' iterates '$S' values, which don't satisfy the Tables.jl Row-iterator interface"))
 
-function Base.iterate(rows::IteratorWrapper)
+@inline function Base.iterate(rows::IteratorWrapper)
     x = iterate(rows.x)
     x === nothing && return nothing
     row, st = x
@@ -40,7 +40,7 @@ function Base.iterate(rows::IteratorWrapper)
     return IteratorRow(row), st
 end
 
-function Base.iterate(rows::IteratorWrapper, st)
+@inline function Base.iterate(rows::IteratorWrapper, st)
     x = iterate(rows.x, st)
     x === nothing && return nothing
     row, st = x
@@ -51,11 +51,15 @@ struct IteratorRow{T}
     row::T
 end
 
-function Base.getproperty(d::IteratorRow, ::Type{T}, col::Int, nm::Symbol) where {T}
+function Base.getproperty(d::IteratorRow, ::Type{T}, col::Int, nm) where {T}
     x = getproperty(getfield(d, 1), T, col, nm)
     return convert(DataValueInterfaces.nondatavaluetype(typeof(x)), x)
 end
 function Base.getproperty(d::IteratorRow, nm::Symbol)
+    x = getproperty(getfield(d, 1), nm)
+    return convert(DataValueInterfaces.nondatavaluetype(typeof(x)), x)
+end
+function Base.getproperty(d::IteratorRow, nm::Int)
     x = getproperty(getfield(d, 1), nm)
     return convert(DataValueInterfaces.nondatavaluetype(typeof(x)), x)
 end
