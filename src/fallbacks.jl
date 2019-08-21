@@ -3,7 +3,11 @@
 ## we'll provide a default implementation of the dual
 
 # generic row iteration of columns
-rowcount(cols) = length(getproperty(cols, propertynames(cols)[1]))
+function rowcount(cols)
+    props = propertynames(cols)
+    isempty(props) && return 0
+    return length(getproperty(cols, props[1]))
+end
 
 struct ColumnsRow{T}
     columns::T # a `Columns` object
@@ -58,7 +62,7 @@ end
 function rows(x::T) where {T}
     if columnaccess(T)
         cols = columns(x)
-        return RowIterator(cols, rowcount(cols))
+        return RowIterator(cols, Int(rowcount(cols)))
     elseif IteratorInterfaceExtensions.isiterable(x)
         return nondatavaluerows(x)
     end
